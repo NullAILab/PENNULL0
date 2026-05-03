@@ -1,5 +1,0 @@
-0000000000000000000000000000000000000000 de4feb09b3b9d127dbb0a51d908e2c381bb0e679 CVRpy <rami.abujalalah@gmail.com> 1777796487 +0200	commit (initial): feat: penNULL — autonomous AI penetration testing platform (fork of PentAGI)
-de4feb09b3b9d127dbb0a51d908e2c381bb0e679 e636ee18a9ab99be0a26f8b48b370ca03c488f5b CVRpy <rami.abujalalah@gmail.com> 1777796549 +0200	commit: fix: replace test secret placeholder to pass GitHub secret scanning
-e636ee18a9ab99be0a26f8b48b370ca03c488f5b 4abc6a35ce9508cfaf46cb2a3c6de3681825eaa4 CVRpy <rami.abujalalah@gmail.com> 1777796778 +0200	commit: fix: replace all secret-scanning-triggering test keys with safe placeholders
-4abc6a35ce9508cfaf46cb2a3c6de3681825eaa4 3db0acab6d8a724d53cae016143ce0750dbfbea1 CVRpy <rami.abujalalah@gmail.com> 1777796816 +0200	reset: moving to 3db0acab6d8a724d53cae016143ce0750dbfbea1
-3db0acab6d8a724d53cae016143ce0750dbfbea1 3db0acab6d8a724d53cae016143ce0750dbfbea1 CVRpy <rami.abujalalah@gmail.com> 1777798743 +0200	Branch: renamed refs/heads/master to refs/heads/main
