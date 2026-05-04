@@ -48,6 +48,7 @@ by [NullAI Lab](https://github.com/NullAILab)
   - [Step 4 — Access penNULL](#step-4--access-pennull)
   - [Step 5 — Log In & Secure Your Account](#step-5--log-in--secure-your-account)
   - [External Network Access](#accessing-pennull-from-external-networks)
+- [Environment Configuration (.env)](#environment-configuration-env)
 - [Running Your First Pentest](#running-your-first-pentest)
 - [API Access](#api-access)
   - [LLM Provider Configuration](#custom-llm-provider-configuration)
@@ -954,6 +955,121 @@ Set `ASSISTANT_USE_AGENTS=true` to have **Use Agents** enabled by default for al
 > **For fully local, offline deployment:** See the [vLLM + Qwen3.5-27B-FP8 guide](examples/guides/vllm-qwen35-27b-fp8.md) for production-grade local LLM inference (tested at ~13,000 TPS on 4× RTX 5090 GPUs).
 >
 > **For production / team deployments:** Use the [Worker Node Setup](examples/guides/worker_node.md) to isolate agent execution on a dedicated server.
+
+## Environment Configuration (.env)
+
+All penNULL settings are controlled through the `.env` file. Copy the reference file and edit it:
+
+```bash
+cp .env.example .env
+```
+
+The `.env.example` file contains **every available variable with an inline comment** explaining what it does, what values it accepts, and which ones must be changed before first run. Below is a summary of the most important sections.
+
+---
+
+### ⚠️ Variables You Must Change Before Running
+
+These variables ship with weak placeholder values. Change them before starting penNULL for the first time:
+
+| Variable | What to set |
+|---|---|
+| `COOKIE_SIGNING_SALT` | Random string — `openssl rand -hex 16` |
+| `PENNULL_POSTGRES_PASSWORD` | Strong password — `openssl rand -hex 16` |
+| `LOCAL_SCRAPER_USERNAME` | Any username (used for scraper auth) |
+| `LOCAL_SCRAPER_PASSWORD` | Strong password for scraper |
+| `SCRAPER_PRIVATE_URL` | Update with the username/password above |
+| `NEO4J_PASSWORD` | Strong password (if using Graphiti) |
+| `LANGFUSE_POSTGRES_PASSWORD` | Strong password (if using Langfuse) |
+| `LANGFUSE_CLICKHOUSE_PASSWORD` | Strong password (if using Langfuse) |
+| `LANGFUSE_REDIS_AUTH` | Strong password — `openssl rand -hex 24` |
+| `LANGFUSE_SALT` | Random hex — `openssl rand -hex 14` |
+| `LANGFUSE_ENCRYPTION_KEY` | 64-char hex — `openssl rand -hex 32` |
+| `LANGFUSE_NEXTAUTH_SECRET` | Random string — `openssl rand -hex 16` |
+| `LANGFUSE_S3_ACCESS_KEY_ID` | Any string, min 3 chars |
+| `LANGFUSE_S3_SECRET_ACCESS_KEY` | Any string, min 8 chars |
+| `LANGFUSE_INIT_USER_PASSWORD` | Langfuse admin password |
+
+---
+
+### LLM Providers
+
+Set **at least one**. Multiple providers can be active simultaneously.
+
+| Provider | Key variable | Notes |
+|---|---|---|
+| OpenAI | `OPEN_AI_KEY` | Supports GPT-4.1, o3, o4-mini, etc. |
+| Anthropic | `ANTHROPIC_API_KEY` | Supports Claude 3.5, Claude 4, etc. |
+| Google AI | `GEMINI_API_KEY` | Supports Gemini 2.0, 2.5, etc. |
+| AWS Bedrock | `BEDROCK_REGION` + auth | Multiple auth methods — see `.env.example` |
+| DeepSeek | `DEEPSEEK_API_KEY` | Strong reasoning models |
+| GLM (Zhipu) | `GLM_API_KEY` | |
+| Kimi (Moonshot) | `KIMI_API_KEY` | Ultra-long context |
+| Qwen (Alibaba) | `QWEN_API_KEY` | Multimodal support |
+| Custom / OpenRouter | `LLM_SERVER_URL` + `LLM_SERVER_KEY` | Any OpenAI-compatible endpoint |
+| Ollama (local) | `OLLAMA_SERVER_URL` + `OLLAMA_SERVER_MODEL` | Zero-cost, no internet required |
+
+---
+
+### Embeddings
+
+```bash
+EMBEDDING_PROVIDER=ollama            # openai | ollama | mistral | jina | huggingface | googleai | voyageai
+EMBEDDING_MODEL=nomic-embed-text     # Model name for your chosen provider
+EMBEDDING_URL=http://host.docker.internal:11434  # Leave empty to inherit from LLM provider
+```
+
+> [!IMPORTANT]
+> Use the **same embedding provider consistently**. Switching providers after data is stored requires a full reindex: `docker exec -it pennull /opt/pennull/bin/etester reindex`
+
+---
+
+### Agent Behaviour
+
+| Variable | Default | Description |
+|---|---|---|
+| `ASSISTANT_USE_AGENTS` | `true` | Enable multi-agent mode by default for new assistants |
+| `ASK_USER` | `true` | Allow agents to pause and ask for input |
+| `AGENT_PLANNING_STEP_ENABLED` | `true` | Generate execution plan before each subtask (recommended for smaller models) |
+| `EXECUTION_MONITOR_ENABLED` | `false` | Enable mentor agent for stuck detection (2-3x token cost, 2x quality gain) |
+| `MAX_GENERAL_AGENT_TOOL_CALLS` | `100` | Hard limit for primary/pentest/coder agents |
+| `MAX_LIMITED_AGENT_TOOL_CALLS` | `20` | Hard limit for searcher/memorist/reporter agents |
+
+---
+
+### Search Engines
+
+DuckDuckGo and Sploitus are free (no key needed). All others require an API key.
+
+```bash
+DUCKDUCKGO_ENABLED=true     # Free web search
+SPLOITUS_ENABLED=true       # Free exploit/CVE search
+TAVILY_API_KEY=             # Best for research tasks
+GOOGLE_API_KEY=             # Google Custom Search
+PERPLEXITY_API_KEY=         # AI-powered search
+SEARXNG_URL=                # Self-hosted meta search
+```
+
+---
+
+### Optional Stacks
+
+| Stack | Compose file | Key variable to enable |
+|---|---|---|
+| Langfuse (LLM tracing) | `docker-compose-langfuse.yml` | `LANGFUSE_BASE_URL=http://langfuse-web:3000` |
+| Graphiti (knowledge graph) | `docker-compose-graphiti.yml` | `GRAPHITI_ENABLED=true` + `GRAPHITI_URL=http://graphiti:8000` |
+| Observability (Grafana) | `docker-compose-observability.yml` | `OTEL_HOST=otelcol:8148` |
+
+Start all stacks together:
+
+```bash
+docker compose -f docker-compose.yml \
+               -f docker-compose-langfuse.yml \
+               -f docker-compose-graphiti.yml \
+               -f docker-compose-observability.yml up -d
+```
+
+---
 
 ## Running Your First Pentest
 
