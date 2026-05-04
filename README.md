@@ -42,6 +42,14 @@ by [NullAI Lab](https://github.com/NullAILab)
 - [Architecture](#architecture)
   - [Agent Supervision](#advanced-agent-supervision)
 - [Quick Start](#quick-start)
+  - [Step 1 — System Requirements](#step-1--system-requirements)
+  - [Step 2 — Install Docker](#step-2--install-docker)
+  - [Step 3 — Get penNULL](#step-3--get-pennull)
+    - [Option A: Installer (Recommended)](#option-a-installer-recommended)
+    - [Option B: Manual Setup](#option-b-manual-setup)
+  - [Step 4 — Access penNULL](#step-4--access-pennull)
+  - [Step 5 — Log In & Secure Your Account](#step-5--log-in--secure-your-account)
+  - [External Network Access](#accessing-pennull-from-external-networks)
 - [Running Your First Pentest](#running-your-first-pentest)
 - [API Access](#api-access)
   - [LLM Provider Configuration](#custom-llm-provider-configuration)
@@ -609,381 +617,430 @@ The system uses Docker containers for isolation and easy deployment, with separa
 
 ## Quick Start
 
-### System Requirements
+> **Choose your path:** Use the **[Installer](#option-a-installer-recommended)** for a guided setup (all platforms), or follow the **[Manual steps](#option-b-manual-setup)** if you prefer full control.
 
-- Docker and Docker Compose (or Podman - see [Podman configuration](#running-pennull-with-podman))
-- Minimum 2 vCPU
-- Minimum 4GB RAM
-- 20GB free disk space
-- Internet access for downloading images and updates
+---
 
-### Using Installer (Recommended)
+### Step 1 — System Requirements
 
-penNULL provides an interactive installer with a terminal-based UI for streamlined configuration and deployment. The installer guides you through system checks, LLM provider setup, search engine configuration, and security hardening.
+Before you begin, make sure your machine meets these requirements:
 
-**Supported Platforms:**
-- **Linux**: amd64 [download](https://pennull.com/downloads/linux/amd64/installer-latest.zip) | arm64 [download](https://pennull.com/downloads/linux/arm64/installer-latest.zip)
-- **Windows**: amd64 [download](https://pennull.com/downloads/windows/amd64/installer-latest.zip)
-- **macOS**: amd64 (Intel) [download](https://pennull.com/downloads/darwin/amd64/installer-latest.zip) | arm64 (M-series) [download](https://pennull.com/downloads/darwin/arm64/installer-latest.zip)
+| Requirement | Minimum |
+|---|---|
+| CPU | 2 vCPU |
+| RAM | 4 GB |
+| Disk | 20 GB free |
+| Software | Docker + Docker Compose (or Podman) |
+| Network | Internet access (for pulling images) |
+| LLM Provider | At least one API key — OpenAI, Anthropic, Gemini, AWS Bedrock, or Ollama |
 
-**Quick Installation (Linux amd64):**
+---
+
+### Step 2 — Install Docker
+
+Skip this step if Docker is already installed on your system.
+
+<details>
+<summary><b>🪟 Windows</b></summary>
+
+1. Download and install **[Docker Desktop for Windows](https://www.docker.com/products/docker-desktop/)**
+2. During installation, make sure **"Use WSL 2"** is selected (recommended)
+3. Start Docker Desktop and wait until the whale icon in the taskbar is green (running)
+4. Open **PowerShell** or **Command Prompt** and verify:
+
+```powershell
+docker --version
+docker compose version
+```
+
+You should see version numbers for both commands.
+
+> [!NOTE]
+> Docker Desktop on Windows requires WSL 2 or Hyper-V. Both are available on Windows 10/11 Pro, Enterprise, and Education. Home editions support WSL 2 only.
+
+</details>
+
+<details>
+<summary><b>🐧 Linux (Ubuntu / Debian)</b></summary>
 
 ```bash
-# Create installation directory
+# Install Docker Engine
+sudo apt-get update
+sudo apt-get install -y ca-certificates curl
+sudo install -m 0755 -d /etc/apt/keyrings
+sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] \
+  https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
+  | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+sudo apt-get update
+sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+
+# Add your user to the docker group (avoids needing sudo for every command)
+sudo usermod -aG docker $USER
+newgrp docker
+
+# Verify
+docker --version
+docker compose version
+```
+
+</details>
+
+<details>
+<summary><b>🍎 macOS</b></summary>
+
+1. Download and install **[Docker Desktop for Mac](https://www.docker.com/products/docker-desktop/)**
+   - **Apple Silicon (M1/M2/M3):** choose the **Apple Silicon** build
+   - **Intel:** choose the **Intel Chip** build
+2. Open Docker Desktop from Applications and wait until the status bar icon shows "Docker Desktop is running"
+3. Open **Terminal** and verify:
+
+```bash
+docker --version
+docker compose version
+```
+
+</details>
+
+<details>
+<summary><b>🦭 Podman (alternative to Docker)</b></summary>
+
+penNULL supports Podman as a drop-in Docker alternative. When using **Podman in rootless mode**, the scraper service needs a small configuration change because rootless containers cannot bind ports below 1024.
+
+**Edit `docker-compose.yml`** — change the `scraper` service port from `443` to `3000`:
+
+```yaml
+scraper:
+  expose:
+    - 3000/tcp
+  ports:
+    - "${SCRAPER_LISTEN_IP:-127.0.0.1}:${SCRAPER_LISTEN_PORT:-9443}:3000"
+```
+
+**Update `.env`** — use HTTP and port 3000 for the scraper:
+
+```bash
+SCRAPER_PRIVATE_URL=http://someuser:somepass@scraper:3000/
+LOCAL_SCRAPER_USERNAME=someuser
+LOCAL_SCRAPER_PASSWORD=somepass
+```
+
+Then start with `podman-compose up -d --force-recreate`.
+
+If running Podman in **rootful mode** (with sudo), no changes are needed — the default configuration works as-is.
+
+</details>
+
+---
+
+### Step 3 — Get penNULL
+
+#### Option A: Installer (Recommended)
+
+The interactive installer handles environment setup, LLM provider configuration, security hardening, and deployment automatically.
+
+**Download for your platform:**
+
+| Platform | Architecture | Download |
+|---|---|---|
+| 🪟 Windows | amd64 | [installer-latest.zip](https://pennull.com/downloads/windows/amd64/installer-latest.zip) |
+| 🐧 Linux | amd64 | [installer-latest.zip](https://pennull.com/downloads/linux/amd64/installer-latest.zip) |
+| 🐧 Linux | arm64 | [installer-latest.zip](https://pennull.com/downloads/linux/arm64/installer-latest.zip) |
+| 🍎 macOS (Intel) | amd64 | [installer-latest.zip](https://pennull.com/downloads/darwin/amd64/installer-latest.zip) |
+| 🍎 macOS (M-series) | arm64 | [installer-latest.zip](https://pennull.com/downloads/darwin/arm64/installer-latest.zip) |
+
+**Run the installer:**
+
+<details>
+<summary><b>🪟 Windows</b></summary>
+
+1. Extract `installer-latest.zip`
+2. Open **PowerShell as Administrator**
+3. Navigate to the extracted folder and run:
+
+```powershell
+.\installer.exe
+```
+
+The installer opens an interactive terminal UI — follow the on-screen prompts.
+
+</details>
+
+<details>
+<summary><b>🐧 Linux</b></summary>
+
+```bash
+# Create a directory and download
 mkdir -p pennull && cd pennull
-
-# Download installer
 wget -O installer.zip https://pennull.com/downloads/linux/amd64/installer-latest.zip
-
-# Extract
 unzip installer.zip
 
-# Run interactive installer
+# Run (use sudo for production; see note below)
+sudo ./installer
+```
+
+> [!NOTE]
+> The installer needs access to the Docker socket (`/var/run/docker.sock`).
+> - **Production:** run with `sudo ./installer`
+> - **Development:** add your user to the `docker` group (`sudo usermod -aG docker $USER && newgrp docker`), then run `./installer` without sudo
+
+</details>
+
+<details>
+<summary><b>🍎 macOS</b></summary>
+
+```bash
+mkdir -p pennull && cd pennull
+curl -L -o installer.zip https://pennull.com/downloads/darwin/arm64/installer-latest.zip  # arm64 / M-series
+# curl -L -o installer.zip https://pennull.com/downloads/darwin/amd64/installer-latest.zip  # Intel
+unzip installer.zip
+chmod +x installer
 ./installer
 ```
 
-**Prerequisites & Permissions:**
+</details>
 
-The installer requires appropriate privileges to interact with the Docker API for proper operation. By default, it uses the Docker socket (`/var/run/docker.sock`) which requires either:
+The installer automatically:
+1. Checks Docker, network, and disk requirements
+2. Creates and configures the `.env` file
+3. Sets up your LLM provider (OpenAI, Anthropic, Gemini, Bedrock, Ollama, or custom)
+4. Configures search engines (DuckDuckGo, Tavily, Google, etc.)
+5. Generates secure credentials and SSL certificates
+6. Starts penNULL with Docker Compose
 
-- **Option 1 (Recommended for production):** Run the installer as root:
-  ```bash
-  sudo ./installer
-  ```
+When the installer finishes, skip to **[Step 4 — Access penNULL](#step-4--access-pennull)**.
 
-- **Option 2 (Development environments):** Grant your user access to the Docker socket by adding them to the `docker` group:
-  ```bash
-  # Add your user to the docker group
-  sudo usermod -aG docker $USER
-  
-  # Log out and log back in, or activate the group immediately
-  newgrp docker
-  
-  # Verify Docker access (should run without sudo)
-  docker ps
-  ```
+---
 
-  ⚠️ **Security Note:** Adding a user to the `docker` group grants root-equivalent privileges. Only do this for trusted users in controlled environments. For production deployments, consider using rootless Docker mode or running the installer with sudo.
+#### Option B: Manual Setup
 
-The installer will:
-1. **System Checks**: Verify Docker, network connectivity, and system requirements
-2. **Environment Setup**: Create and configure `.env` file with optimal defaults
-3. **Provider Configuration**: Set up LLM providers (OpenAI, Anthropic, Gemini, Bedrock, Ollama, Custom)
-4. **Search Engines**: Configure DuckDuckGo, Google, Tavily, Traversaal, Perplexity, Sploitus, Searxng
-5. **Security Hardening**: Generate secure credentials and configure SSL certificates
-6. **Deployment**: Start penNULL with docker-compose
+Use this path if you prefer to configure everything yourself, or if the installer is not available for your environment.
 
-**For Production & Enhanced Security:**
-
-For production deployments or security-sensitive environments, we **strongly recommend** using a distributed two-node architecture where worker operations are isolated on a separate server. This prevents untrusted code execution and network access issues on your main system.
-
-**See detailed guide**: [Worker Node Setup](examples/guides/worker_node.md)
-
-The two-node setup provides:
-- **Isolated Execution**: Worker containers run on dedicated hardware
-- **Network Isolation**: Separate network boundaries for penetration testing
-- **Security Boundaries**: Docker-in-Docker with TLS authentication
-- **OOB Attack Support**: Dedicated port ranges for out-of-band techniques
-
-### Manual Installation
-
-1. Create a working directory or clone the repository:
+**1. Create a working directory**
 
 ```bash
+# Linux / macOS
 mkdir pennull && cd pennull
 ```
 
-2. Copy `.env.example` to `.env` or download it:
-
-```bash
-curl -o .env https://raw.githubusercontent.com/nullailab/pennull/master/.env.example
+```powershell
+# Windows (PowerShell)
+mkdir pennull; cd pennull
 ```
 
-3. Touch examples files (`example.custom.provider.yml`, `example.ollama.provider.yml`) or download it:
+**2. Download the configuration files**
 
 ```bash
+# Linux / macOS
+curl -O https://raw.githubusercontent.com/nullailab/pennull/master/docker-compose.yml
+curl -o .env https://raw.githubusercontent.com/nullailab/pennull/master/.env.example
 curl -o example.custom.provider.yml https://raw.githubusercontent.com/nullailab/pennull/master/examples/configs/custom-openai.provider.yml
 curl -o example.ollama.provider.yml https://raw.githubusercontent.com/nullailab/pennull/master/examples/configs/ollama-llama318b.provider.yml
 ```
 
-4. Fill in the required API keys in `.env` file.
-
-```bash
-# Required: At least one of these LLM providers
-OPEN_AI_KEY=your_openai_key
-ANTHROPIC_API_KEY=your_anthropic_key
-GEMINI_API_KEY=your_gemini_key
-
-# Optional: AWS Bedrock provider (enterprise-grade models)
-BEDROCK_REGION=us-east-1
-# Choose one authentication method:
-BEDROCK_DEFAULT_AUTH=true                        # Option 1: Use AWS SDK default credential chain (recommended for EC2/ECS)
-# BEDROCK_BEARER_TOKEN=your_bearer_token         # Option 2: Bearer token authentication
-# BEDROCK_ACCESS_KEY_ID=your_aws_access_key      # Option 3: Static credentials
-# BEDROCK_SECRET_ACCESS_KEY=your_aws_secret_key
-
-# Optional: Ollama provider (local or cloud)
-# OLLAMA_SERVER_URL=http://ollama-server:11434   # Local server
-# OLLAMA_SERVER_URL=https://ollama.com           # Cloud service
-# OLLAMA_SERVER_API_KEY=your_ollama_cloud_key    # Required for cloud, empty for local
-
-# Optional: Chinese AI providers
-# DEEPSEEK_API_KEY=your_deepseek_key             # DeepSeek (strong reasoning)
-# GLM_API_KEY=your_glm_key                       # GLM (Zhipu AI)
-# KIMI_API_KEY=your_kimi_key                     # Kimi (Moonshot AI, ultra-long context)
-# QWEN_API_KEY=your_qwen_key                     # Qwen (Alibaba Cloud, multimodal)
-
-# Optional: Local LLM provider (zero-cost inference)
-OLLAMA_SERVER_URL=http://localhost:11434
-OLLAMA_SERVER_MODEL=your_model_name
-
-# Optional: Additional search capabilities
-DUCKDUCKGO_ENABLED=true
-DUCKDUCKGO_REGION=us-en
-DUCKDUCKGO_SAFESEARCH=
-DUCKDUCKGO_TIME_RANGE=
-SPLOITUS_ENABLED=true
-GOOGLE_API_KEY=your_google_key
-GOOGLE_CX_KEY=your_google_cx
-TAVILY_API_KEY=your_tavily_key
-TRAVERSAAL_API_KEY=your_traversaal_key
-PERPLEXITY_API_KEY=your_perplexity_key
-PERPLEXITY_MODEL=sonar-pro
-PERPLEXITY_CONTEXT_SIZE=medium
-
-# Searxng meta search engine (aggregates results from multiple sources)
-SEARXNG_URL=http://your-searxng-instance:8080
-SEARXNG_CATEGORIES=general
-SEARXNG_LANGUAGE=
-SEARXNG_SAFESEARCH=0
-SEARXNG_TIME_RANGE=
-SEARXNG_TIMEOUT=
-
-## Graphiti knowledge graph settings
-GRAPHITI_ENABLED=true
-GRAPHITI_TIMEOUT=30
-GRAPHITI_URL=http://graphiti:8000
-GRAPHITI_MODEL_NAME=gpt-5-mini
-
-# Neo4j settings (used by Graphiti stack)
-NEO4J_USER=neo4j
-NEO4J_DATABASE=neo4j
-NEO4J_PASSWORD=devpassword
-NEO4J_URI=bolt://neo4j:7687
-
-# Assistant configuration
-ASSISTANT_USE_AGENTS=false         # Default value for agent usage when creating new assistants
+```powershell
+# Windows (PowerShell)
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/nullailab/pennull/master/docker-compose.yml" -OutFile "docker-compose.yml"
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/nullailab/pennull/master/.env.example" -OutFile ".env"
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/nullailab/pennull/master/examples/configs/custom-openai.provider.yml" -OutFile "example.custom.provider.yml"
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/nullailab/pennull/master/examples/configs/ollama-llama318b.provider.yml" -OutFile "example.ollama.provider.yml"
 ```
 
-5. Change all security related environment variables in `.env` file to improve security.
+**3. Add your LLM API key**
+
+Open `.env` in any text editor and set **at least one** of these:
+
+```bash
+# Pick one or more — at least one is required
+OPEN_AI_KEY=sk-...           # OpenAI (GPT-4, o3, o4-mini, …)
+ANTHROPIC_API_KEY=sk-ant-... # Anthropic (Claude 3.5, Claude 4, …)
+GEMINI_API_KEY=AIza...       # Google AI (Gemini 2.0, Gemini 2.5, …)
+```
+
+For **local inference with Ollama** (no cloud key needed):
+
+```bash
+OLLAMA_SERVER_URL=http://host.docker.internal:11434   # Windows / macOS
+# OLLAMA_SERVER_URL=http://172.17.0.1:11434           # Linux (Docker bridge)
+OLLAMA_SERVER_MODEL=llama3.1:8b-instruct-q8_0
+```
 
 <details>
-    <summary>Security related environment variables</summary>
+<summary><b>Optional: additional providers and search engines</b></summary>
 
-### Main Security Settings
-- `COOKIE_SIGNING_SALT` - Salt for cookie signing, change to random value
-- `PUBLIC_URL` - Public URL of your server (eg. `https://pennull.example.com`)
-- `SERVER_SSL_CRT` and `SERVER_SSL_KEY` - Custom paths to your existing SSL certificate and key for HTTPS (these paths should be used in the docker-compose.yml file to mount as volumes)
+```bash
+# AWS Bedrock
+BEDROCK_REGION=us-east-1
+BEDROCK_DEFAULT_AUTH=true          # Use AWS SDK credential chain (EC2/ECS)
+# BEDROCK_ACCESS_KEY_ID=...        # Or: static credentials
+# BEDROCK_SECRET_ACCESS_KEY=...
 
-### Scraper Access
-- `SCRAPER_PUBLIC_URL` - Public URL for scraper if you want to use different scraper server for public URLs
-- `SCRAPER_PRIVATE_URL` - Private URL for scraper (local scraper server in docker-compose.yml file to access it to local URLs)
+# DeepSeek / GLM / Kimi / Qwen
+# DEEPSEEK_API_KEY=...
+# GLM_API_KEY=...
+# KIMI_API_KEY=...
+# QWEN_API_KEY=...
 
-### Access Credentials
-- `PENNULL_POSTGRES_USER` and `PENNULL_POSTGRES_PASSWORD` - PostgreSQL credentials
-- `NEO4J_USER` and `NEO4J_PASSWORD` - Neo4j credentials (for Graphiti knowledge graph)
+# Search engines (optional but recommended)
+DUCKDUCKGO_ENABLED=true
+SPLOITUS_ENABLED=true
+# TAVILY_API_KEY=...
+# TRAVERSAAL_API_KEY=...
+# PERPLEXITY_API_KEY=...
+# GOOGLE_API_KEY=...
+# GOOGLE_CX_KEY=...
+```
 
 </details>
 
-6. Remove all inline comments from `.env` file if you want to use it in VSCode or other IDEs as a envFile option:
+**4. Harden security credentials** *(strongly recommended before any network exposure)*
+
+Open `.env` and change these values to random strings:
 
 ```bash
-perl -i -pe 's/\s+#.*$//' .env
+COOKIE_SIGNING_SALT=change-this-to-a-random-value
+PENNULL_POSTGRES_USER=pennull
+PENNULL_POSTGRES_PASSWORD=change-this-password
+PUBLIC_URL=https://localhost:8443   # Set to your actual domain/IP for remote access
 ```
 
-7. Run the penNULL stack:
+<details>
+<summary><b>Full list of security-related variables</b></summary>
+
+| Variable | Description |
+|---|---|
+| `COOKIE_SIGNING_SALT` | Salt for session cookie signing |
+| `PUBLIC_URL` | Public URL of your server (e.g. `https://pennull.example.com`) |
+| `SERVER_SSL_CRT` / `SERVER_SSL_KEY` | Paths to your own SSL certificate and key |
+| `PENNULL_POSTGRES_USER` | PostgreSQL username |
+| `PENNULL_POSTGRES_PASSWORD` | PostgreSQL password |
+| `NEO4J_USER` / `NEO4J_PASSWORD` | Neo4j credentials (for Graphiti knowledge graph) |
+| `SCRAPER_PUBLIC_URL` | Public URL for the scraper service |
+| `SCRAPER_PRIVATE_URL` | Internal URL for the scraper service |
+
+</details>
+
+**5. Start penNULL**
 
 ```bash
-curl -O https://raw.githubusercontent.com/nullailab/pennull/master/docker-compose.yml
+# Linux / macOS / Windows (PowerShell with Docker Desktop)
 docker compose up -d
 ```
 
-Visit [localhost:8443](https://localhost:8443) to access penNULL Web UI (default is `admin@pennull.com` / `admin`)
+Watch the containers start:
+
+```bash
+docker compose logs -f pennull
+```
+
+Wait until you see a line like `server started on :8443` before opening the browser.
+
+---
+
+### Step 4 — Access penNULL
+
+Open your browser and go to:
+
+```
+https://localhost:8443
+```
 
 > [!NOTE]
-> If you caught an error about `pennull-network` or `observability-network` or `langfuse-network` you need to run `docker-compose.yml` firstly to create these networks and after that run `docker-compose-langfuse.yml`, `docker-compose-graphiti.yml`, and `docker-compose-observability.yml` to use Langfuse, Graphiti, and Observability services.
->
-> You have to set at least one Language Model provider (OpenAI, Anthropic, Gemini, AWS Bedrock, or Ollama) to use penNULL. AWS Bedrock provides enterprise-grade access to multiple foundation models from leading AI companies, while Ollama provides zero-cost local inference if you have sufficient computational resources. Additional API keys for search engines are optional but recommended for better results.
->
-> **For fully local deployment with advanced models**: See our comprehensive guide on [Running penNULL with vLLM and Qwen3.5-27B-FP8](examples/guides/vllm-qwen35-27b-fp8.md) for a production-grade local LLM setup. This configuration achieves ~13,000 TPS for prompt processing and ~650 TPS for completion on 4× RTX 5090 GPUs, supporting 12+ concurrent flows with complete independence from cloud providers.
->
-> `LLM_SERVER_*` environment variables are experimental feature and will be changed in the future. Right now you can use them to specify custom LLM server URL and one model for all agent types.
->
-> `PROXY_URL` is a global proxy URL for all LLM providers and external search systems. You can use it for isolation from external networks.
->
-> The `docker-compose.yml` file runs the penNULL service as root user because it needs access to docker.sock for container management. If you're using TCP/IP network connection to Docker instead of socket file, you can remove root privileges and use the default `pennull` user for better security.
+> Your browser will show a **"Your connection is not private"** / **"Potential Security Risk"** warning because penNULL uses a self-signed SSL certificate by default.
+> This is expected — click **Advanced → Proceed to localhost** (Chrome) or **Accept the Risk and Continue** (Firefox).
+
+---
+
+### Step 5 — Log In & Secure Your Account
+
+Log in with the **default credentials**:
+
+| Field | Value |
+|---|---|
+| **Email** | `admin@pennull.com` |
+| **Password** | `admin` |
+
+> [!IMPORTANT]
+> **Change your password immediately after first login.**
+> Go to **Settings → Profile → Change Password** and set a strong password.
+> The default credentials are public knowledge — leaving them unchanged is a serious security risk.
+
+---
+
+### What's Next?
+
+| Goal | Where to go |
+|---|---|
+| Run your first pentest | → [Running Your First Pentest](#running-your-first-pentest) |
+| Access penNULL from another machine | → [External Network Access](#accessing-pennull-from-external-networks) |
+| Add more LLM providers | → [LLM Provider Configuration](#custom-llm-provider-configuration) |
+| Enable Langfuse / Grafana | → [Advanced Setup](#advanced-setup) |
+| Use the REST / GraphQL API | → [API Access](#api-access) |
+
+---
 
 ### Accessing penNULL from External Networks
 
-By default, penNULL binds to `127.0.0.1` (localhost only) for security. To access penNULL from other machines on your network, you need to configure external access.
+By default, penNULL binds to `127.0.0.1` (localhost only). To allow access from other machines on your network:
 
-#### Configuration Steps
-
-1. **Update `.env` file** with your server's IP address:
+**1. Update `.env`:**
 
 ```bash
-# Network binding - allow external connections
 PENNULL_LISTEN_IP=0.0.0.0
 PENNULL_LISTEN_PORT=8443
-
-# Public URL - use your actual server IP or hostname
-# Replace 192.168.1.100 with your server's IP address
-PUBLIC_URL=https://192.168.1.100:8443
-
-# CORS origins - list all URLs that will access penNULL
-# Include localhost for local access AND your server IP for external access
+PUBLIC_URL=https://192.168.1.100:8443        # ← replace with your actual IP
 CORS_ORIGINS=https://localhost:8443,https://192.168.1.100:8443
 ```
 
 > [!IMPORTANT]
-> - Replace `192.168.1.100` with your actual server's IP address
-> - Do NOT use `0.0.0.0` in `PUBLIC_URL` or `CORS_ORIGINS` - use the actual IP address
-> - Include both localhost and your server IP in `CORS_ORIGINS` for flexibility
+> Use your actual server IP in `PUBLIC_URL` and `CORS_ORIGINS`. Do **not** use `0.0.0.0` there.
 
-2. **Recreate containers** to apply the changes:
+**2. Recreate containers:**
 
 ```bash
 docker compose down
 docker compose up -d --force-recreate
 ```
 
-3. **Verify port binding:**
+**3. Verify the port is bound:**
 
 ```bash
 docker ps | grep pennull
+# Expected: 0.0.0.0:8443->8443/tcp or :::8443->8443/tcp
 ```
 
-You should see `0.0.0.0:8443->8443/tcp` or `:::8443->8443/tcp`.
-
-If you see `127.0.0.1:8443->8443/tcp`, the environment variable wasn't picked up. In this case, directly edit `docker-compose.yml` line 31:
-
-```yaml
-ports:
-  - "0.0.0.0:8443:8443"
-```
-
-Then recreate containers again.
-
-4. **Configure firewall** to allow incoming connections on port 8443:
+**4. Open firewall port (Linux only):**
 
 ```bash
-# Ubuntu/Debian with UFW
-sudo ufw allow 8443/tcp
-sudo ufw reload
+# Ubuntu / Debian
+sudo ufw allow 8443/tcp && sudo ufw reload
 
-# CentOS/RHEL with firewalld
-sudo firewall-cmd --permanent --add-port=8443/tcp
-sudo firewall-cmd --reload
+# CentOS / RHEL
+sudo firewall-cmd --permanent --add-port=8443/tcp && sudo firewall-cmd --reload
 ```
 
-5. **Access penNULL:**
-
-- **Local access:** `https://localhost:8443`
-- **Network access:** `https://your-server-ip:8443`
-
-> [!NOTE]
-> You'll need to accept the self-signed SSL certificate warning in your browser when accessing via IP address.
+**5. Access:**
+- Local: `https://localhost:8443`
+- Remote: `https://your-server-ip:8443`
 
 ---
 
-### Running penNULL with Podman
-
-penNULL fully supports Podman as a Docker alternative. However, when using **Podman in rootless mode**, the scraper service requires special configuration because rootless containers cannot bind privileged ports (ports below 1024).
-
-#### Podman Rootless Configuration
-
-The default scraper configuration uses port 443 (HTTPS), which is a privileged port. For Podman rootless, reconfigure the scraper to use a non-privileged port:
-
-**1. Edit `docker-compose.yml`** - modify the `scraper` service (around line 199):
-
-```yaml
-scraper:
-  image: nullailab/scraper:latest
-  restart: unless-stopped
-  container_name: scraper
-  hostname: scraper
-  expose:
-    - 3000/tcp  # Changed from 443 to 3000
-  ports:
-    - "${SCRAPER_LISTEN_IP:-127.0.0.1}:${SCRAPER_LISTEN_PORT:-9443}:3000"  # Map to port 3000
-  environment:
-    - MAX_CONCURRENT_SESSIONS=${LOCAL_SCRAPER_MAX_CONCURRENT_SESSIONS:-10}
-    - USERNAME=${LOCAL_SCRAPER_USERNAME:-someuser}
-    - PASSWORD=${LOCAL_SCRAPER_PASSWORD:-somepass}
-  logging:
-    options:
-      max-size: 50m
-      max-file: "7"
-  volumes:
-    - scraper-ssl:/usr/src/app/ssl
-  networks:
-    - pennull-network
-  shm_size: 2g
-```
-
-**2. Update `.env` file** - change the scraper URL to use HTTP and port 3000:
-
-```bash
-# Scraper configuration for Podman rootless
-SCRAPER_PRIVATE_URL=http://someuser:somepass@scraper:3000/
-LOCAL_SCRAPER_USERNAME=someuser
-LOCAL_SCRAPER_PASSWORD=somepass
-```
-
-> [!IMPORTANT]
-> Key changes for Podman:
-> - Use **HTTP** instead of HTTPS for `SCRAPER_PRIVATE_URL`
-> - Use port **3000** instead of 443
-> - Change internal `expose` to `3000/tcp`
-> - Update port mapping to target `3000` instead of `443`
-
-**3. Recreate containers:**
-
-```bash
-podman-compose down
-podman-compose up -d --force-recreate
-```
-
-**4. Test scraper connectivity:**
-
-```bash
-# Test from within the pennull container
-podman exec -it pennull wget -O- "http://someuser:somepass@scraper:3000/html?url=http://example.com"
-```
-
-If you see HTML output, the scraper is working correctly.
-
-#### Podman Rootful Mode
-
-If you're running Podman in rootful mode (with sudo), you can use the default configuration without modifications. The scraper will work on port 443 as intended.
-
-#### Docker Compatibility
-
-All Podman configurations remain fully compatible with Docker. The non-privileged port approach works identically on both container runtimes.
-
 ### Assistant Configuration
 
-penNULL allows you to configure default behavior for assistants:
+| Variable | Default | Description |
+|---|---|---|
+| `ASSISTANT_USE_AGENTS` | `false` | Default agent delegation state when creating new assistants |
 
-| Variable               | Default | Description                                                             |
-| ---------------------- | ------- | ----------------------------------------------------------------------- |
-| `ASSISTANT_USE_AGENTS` | `false` | Controls the default value for agent usage when creating new assistants |
+Set `ASSISTANT_USE_AGENTS=true` to have **Use Agents** enabled by default for all new assistants. Users can always toggle this in the UI per assistant.
 
-The `ASSISTANT_USE_AGENTS` setting affects the initial state of the "Use Agents" toggle when creating a new assistant in the UI:
-- `false` (default): New assistants are created with agent delegation disabled by default
-- `true`: New assistants are created with agent delegation enabled by default
+---
 
-Note that users can always override this setting by toggling the "Use Agents" button in the UI when creating or editing an assistant. This environment variable only controls the initial default state.
+> [!NOTE]
+> **Network errors on first start?** If you see errors about `pennull-network`, `langfuse-network`, or `observability-network`, run `docker compose -f docker-compose.yml up -d` first to create the base networks, then start the optional stacks (`docker-compose-langfuse.yml`, `docker-compose-graphiti.yml`, `docker-compose-observability.yml`) afterwards.
+>
+> **For fully local, offline deployment:** See the [vLLM + Qwen3.5-27B-FP8 guide](examples/guides/vllm-qwen35-27b-fp8.md) for production-grade local LLM inference (tested at ~13,000 TPS on 4× RTX 5090 GPUs).
+>
+> **For production / team deployments:** Use the [Worker Node Setup](examples/guides/worker_node.md) to isolate agent execution on a dedicated server.
 
 ## Running Your First Pentest
 
