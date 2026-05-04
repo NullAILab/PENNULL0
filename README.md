@@ -42,6 +42,7 @@ by [NullAI Lab](https://github.com/NullAILab)
 - [Architecture](#architecture)
   - [Agent Supervision](#advanced-agent-supervision)
 - [Quick Start](#quick-start)
+- [Running Your First Pentest](#running-your-first-pentest)
 - [API Access](#api-access)
   - [LLM Provider Configuration](#custom-llm-provider-configuration)
     - [Ollama](#ollama-provider-configuration)
@@ -983,6 +984,102 @@ The `ASSISTANT_USE_AGENTS` setting affects the initial state of the "Use Agents"
 - `true`: New assistants are created with agent delegation enabled by default
 
 Note that users can always override this setting by toggling the "Use Agents" button in the UI when creating or editing an assistant. This environment variable only controls the initial default state.
+
+## Running Your First Pentest
+
+After completing the Quick Start installation, follow these steps to run your first autonomous penetration test.
+
+### 1. Access the Web UI
+
+Open your browser and navigate to:
+
+```
+https://localhost:8443
+```
+
+> [!NOTE]
+> Your browser will show a self-signed certificate warning. This is expected — click **Advanced** → **Proceed** (or equivalent) to continue.
+
+### 2. Log In
+
+Use the default credentials to log in:
+
+| Field    | Default value         |
+| -------- | --------------------- |
+| Email    | `admin@pennull.com`   |
+| Password | `admin`               |
+
+> [!IMPORTANT]
+> **Change your password immediately after first login.** Navigate to **Settings → Profile → Change Password** and set a strong, unique password. Leaving default credentials in place is a serious security risk.
+
+### 3. Verify LLM Provider
+
+Before running a test, confirm that at least one LLM provider is configured:
+
+1. Go to **Settings → Providers**
+2. Verify that your API key is present and the connection test passes (green checkmark)
+3. If no provider is set up, add your API key in `.env` and restart the stack:
+
+```bash
+docker compose down && docker compose up -d
+```
+
+### 4. Create an Assistant
+
+An assistant defines the AI model and agent settings that penNULL will use.
+
+1. Click **Assistants** in the left sidebar
+2. Click **New Assistant**
+3. Choose a name (e.g., `Web App Tester`)
+4. Select your LLM provider and model
+5. Toggle **Use Agents** to enable the full multi-agent mode
+6. Click **Save**
+
+> [!TIP]
+> For best results on complex targets, enable **Use Agents** — this activates the full Researcher → Developer → Executor → Memorist → Reporter pipeline.
+
+### 5. Start a Pentest Flow
+
+1. Click **New Flow** (or the **+** button) in the left sidebar
+2. Select the assistant you created in step 4
+3. In the message input, describe your target and scope, for example:
+
+   ```
+   Perform a full penetration test on http://192.168.1.100.
+   Focus on web application vulnerabilities (SQLi, XSS, IDOR, auth bypass).
+   The target is a lab machine I own and have full authorization to test.
+   ```
+
+4. Press **Enter** (or click **Send**) to start the flow
+
+### 6. Monitor Agent Progress
+
+Once the flow starts, you can watch the agents work in real time:
+
+- **Flow view** — shows the current task, active agent, and live tool output
+- **Tasks panel** — lists completed and in-progress tasks with status indicators
+- **Logs panel** — shows raw tool output from the Docker sandbox
+
+The agents will automatically progress through reconnaissance, vulnerability discovery, exploitation attempts, and report generation without any manual steps.
+
+> [!NOTE]
+> A typical pentest flow on a lab machine takes **5–20 minutes** depending on the target complexity and the LLM provider speed.
+
+### 7. View and Export the Report
+
+When the flow reaches the **Reporter** agent, a structured vulnerability report is automatically generated:
+
+1. Click the flow in the sidebar once it shows **Completed**
+2. Open the **Report** tab to read the formatted vulnerability summary
+3. Use the **Export** button to download the report as Markdown or PDF
+
+The report includes:
+- Executive summary
+- List of discovered vulnerabilities with CVSS ratings
+- Exploitation evidence and proof-of-concept details
+- Remediation recommendations
+
+---
 
 ## API Access
 
