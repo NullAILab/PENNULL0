@@ -44,9 +44,7 @@ by [NullAI Lab](https://github.com/NullAILab)
 - [Quick Start](#quick-start)
   - [Step 1 — System Requirements](#step-1--system-requirements)
   - [Step 2 — Install Docker](#step-2--install-docker)
-  - [Step 3 — Get penNULL](#step-3--get-pennull)
-    - [Option A: Installer (Recommended)](#option-a-installer-recommended)
-    - [Option B: Manual Setup](#option-b-manual-setup)
+  - [Step 3 — Download & Configure](#step-3--download--configure)
   - [Step 4 — Access penNULL](#step-4--access-pennull)
   - [Step 5 — Log In & Secure Your Account](#step-5--log-in--secure-your-account)
   - [External Network Access](#accessing-pennull-from-external-networks)
@@ -617,10 +615,6 @@ The system uses Docker containers for isolation and easy deployment, with separa
 
 ## Quick Start
 
-> **Choose your path:** Use the **[Installer](#option-a-installer-recommended)** for a guided setup (all platforms), or follow the **[Manual steps](#option-b-manual-setup)** if you prefer full control.
-
----
-
 ### Step 1 — System Requirements
 
 Before you begin, make sure your machine meets these requirements:
@@ -733,88 +727,7 @@ If running Podman in **rootful mode** (with sudo), no changes are needed — the
 
 ---
 
-### Step 3 — Get penNULL
-
-#### Option A: Installer (Recommended)
-
-The interactive installer handles environment setup, LLM provider configuration, security hardening, and deployment automatically.
-
-**Download for your platform:**
-
-| Platform | Architecture | Download |
-|---|---|---|
-| 🪟 Windows | amd64 | [installer-latest.zip](https://pennull.com/downloads/windows/amd64/installer-latest.zip) |
-| 🐧 Linux | amd64 | [installer-latest.zip](https://pennull.com/downloads/linux/amd64/installer-latest.zip) |
-| 🐧 Linux | arm64 | [installer-latest.zip](https://pennull.com/downloads/linux/arm64/installer-latest.zip) |
-| 🍎 macOS (Intel) | amd64 | [installer-latest.zip](https://pennull.com/downloads/darwin/amd64/installer-latest.zip) |
-| 🍎 macOS (M-series) | arm64 | [installer-latest.zip](https://pennull.com/downloads/darwin/arm64/installer-latest.zip) |
-
-**Run the installer:**
-
-<details>
-<summary><b>🪟 Windows</b></summary>
-
-1. Extract `installer-latest.zip`
-2. Open **PowerShell as Administrator**
-3. Navigate to the extracted folder and run:
-
-```powershell
-.\installer.exe
-```
-
-The installer opens an interactive terminal UI — follow the on-screen prompts.
-
-</details>
-
-<details>
-<summary><b>🐧 Linux</b></summary>
-
-```bash
-# Create a directory and download
-mkdir -p pennull && cd pennull
-wget -O installer.zip https://pennull.com/downloads/linux/amd64/installer-latest.zip
-unzip installer.zip
-
-# Run (use sudo for production; see note below)
-sudo ./installer
-```
-
-> [!NOTE]
-> The installer needs access to the Docker socket (`/var/run/docker.sock`).
-> - **Production:** run with `sudo ./installer`
-> - **Development:** add your user to the `docker` group (`sudo usermod -aG docker $USER && newgrp docker`), then run `./installer` without sudo
-
-</details>
-
-<details>
-<summary><b>🍎 macOS</b></summary>
-
-```bash
-mkdir -p pennull && cd pennull
-curl -L -o installer.zip https://pennull.com/downloads/darwin/arm64/installer-latest.zip  # arm64 / M-series
-# curl -L -o installer.zip https://pennull.com/downloads/darwin/amd64/installer-latest.zip  # Intel
-unzip installer.zip
-chmod +x installer
-./installer
-```
-
-</details>
-
-The installer automatically:
-1. Checks Docker, network, and disk requirements
-2. Creates and configures the `.env` file
-3. Sets up your LLM provider (OpenAI, Anthropic, Gemini, Bedrock, Ollama, or custom)
-4. Configures search engines (DuckDuckGo, Tavily, Google, etc.)
-5. Generates secure credentials and SSL certificates
-6. Starts penNULL with Docker Compose
-
-When the installer finishes, skip to **[Step 4 — Access penNULL](#step-4--access-pennull)**.
-
----
-
-#### Option B: Manual Setup
-
-Use this path if you prefer to configure everything yourself, or if the installer is not available for your environment.
+### Step 3 — Download & Configure
 
 **1. Create a working directory**
 
